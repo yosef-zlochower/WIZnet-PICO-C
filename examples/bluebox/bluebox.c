@@ -15,9 +15,6 @@
 #include "hardware/gpio.h"
 #include "hardware/spi.h"
 #include "hardware/dma.h"
-#include "port_common.h"
-
-
 
 // The ioLibrary_Driver from the WIZnet-PICO-C repository
 #include "wizchip_conf.h"
@@ -62,7 +59,6 @@ int main() {
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
 
-    gpio_put(LED_PIN, 1);
     printf("Starting W55RP20 UDP Sender...\n");
 
     // Initialize the WIZnet chip using library functions
