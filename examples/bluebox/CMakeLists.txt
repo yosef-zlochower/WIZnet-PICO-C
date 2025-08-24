@@ -12,6 +12,8 @@ add_executable(${TARGET_NAME}
 # Link the required libraries for Pico and WIZnet
 target_link_libraries(${TARGET_NAME} PRIVATE
     pico_stdlib
+    pico_stdio_usb
+    pico_multicore
     hardware_spi
     hardware_dma
     ETHERNET_FILES
