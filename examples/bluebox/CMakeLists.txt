@@ -6,7 +6,10 @@ set(TARGET_NAME bluebox)
 
 # Add the main source file to the executable
 add_executable(${TARGET_NAME}
-    bluebox.c
+    main.c
+    config.c
+    ds18b20.c
+    network.c
 )
 
 # Link the required libraries for Pico and WIZnet
