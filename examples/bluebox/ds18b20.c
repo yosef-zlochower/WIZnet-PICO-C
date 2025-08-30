@@ -11,6 +11,7 @@
 
 #include "ds18b20.h"
 #include "hardware.h"
+#include "globals.h"
 
 static volatile bool led_on = false;
 
@@ -142,6 +143,8 @@ static int ds18b20_read_temp() {
 
 // --- Core 1 Entry ---
 void ds18b20_core1_entry() {
+#define APPROX_TIME_FOR_ONE_READ_ms 759
+  int delay = time_delay_global * 1000 - APPROX_TIME_FOR_ONE_READ_ms;
   for (;;) {
     gpio_put(LED_PIN, 0); // Turn off LED
     int temp_f = ds18b20_read_temp();
@@ -153,7 +156,7 @@ void ds18b20_core1_entry() {
       printf("CRITICAL: Failed to get valid temp.\n");
     }
     gpio_put(LED_PIN, 1); // Turn on LED
-    sleep_ms(10000);
+    sleep_ms(delay);
   }
 }
 

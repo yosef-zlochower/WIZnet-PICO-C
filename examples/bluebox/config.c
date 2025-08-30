@@ -165,6 +165,7 @@ uint32_t calculate_checksum(const network_config_t *config) {
   for (int i = 0; i < sizeof(config->dest_ip); i++)
     sum += config->dest_ip[i];
   sum += config->dest_port;
+  sum += config->time_delay;
   return sum;
 }
 
@@ -390,6 +391,26 @@ void setup_network_via_console(network_config_t *net_config) {
       printf("\nInvalid Destination Port. Please enter a valid port number.\n");
     }
   } while (1);
+
+  do {
+    printf("\nEnter time delay between between temperature readings (current: %u)\n",
+           net_config->time_delay);
+    printf("or press return to accept current: ");
+    val = read_decimal_word();
+    if (val == -2)
+      break;
+    if (val != -1) {
+      printf("\nTime delay: %u (s). Is this correct? (y/n): ", val);
+      confirm = get_confirmation();
+      if (confirm == 'y' || confirm == 'Y') {
+        net_config->time_delay = val;
+        break;
+      }
+    } else {
+      printf("\nInvalid time delay Port. Please enter a valid time delay.\n");
+    }
+  } while (1);
+
 
   // Set magic number and checksum before writing
   net_config->magic_number = CONFIG_MAGIC_NUMBER;

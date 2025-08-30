@@ -12,6 +12,7 @@ typedef struct {
   uint8_t gw[4];
   uint8_t dest_ip[4];
   uint16_t dest_port;
+  uint16_t time_delay;
   uint32_t checksum;
   uint32_t magic_number;
 } network_config_t;

@@ -14,6 +14,7 @@
 #include "ds18b20.h"
 #include "hardware.h"
 #include "network.h"
+#include "globals.h"
 
 // --- Packet Buffer and Network Configuration ---
 #define PACKET_SIZE 17
@@ -21,6 +22,7 @@
 uint8_t packet_buffer[PACKET_SIZE];
 uint8_t dest_ip_global[4];
 uint16_t dest_port_global;
+uint16_t time_delay_global;
 
 // Main application loop for core 0
 int main() {
@@ -43,13 +45,18 @@ int main() {
 
   if (gpio_get(CONFIG_BUTTON_PIN) == 0) {
     printf("Config button pressed. Entering configuration mode.\n");
-    // Initialize with default configuration to display in the prompt
-    memcpy(net_config.mac, (uint8_t[]){0x00, 0x08, 0xDC, 0x12, 0x34, 0x56}, 6);
-    memcpy(net_config.ip, (uint8_t[]){192, 168, 2, 162}, 4);
-    memcpy(net_config.sn, (uint8_t[]){255, 255, 255, 0}, 4);
-    memcpy(net_config.gw, (uint8_t[]){192, 168, 2, 1}, 4);
-    memcpy(net_config.dest_ip, (uint8_t[]){192, 168, 2, 10}, 4);
-    net_config.dest_port = 16216;
+    bool valid = read_config_from_flash(&net_config);
+    if (!valid)
+    {
+      // Initialize with default configuration to display in the prompt
+      memcpy(net_config.mac, (uint8_t[]){0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02}, 6);
+      memcpy(net_config.ip, (uint8_t[]){192, 168, 2, 162}, 4);
+      memcpy(net_config.sn, (uint8_t[]){255, 255, 255, 0}, 4);
+      memcpy(net_config.gw, (uint8_t[]){192, 168, 2, 1}, 4);
+      memcpy(net_config.dest_ip, (uint8_t[]){192, 168, 2, 10}, 4);
+      net_config.dest_port = 16216;
+      net_config.time_delay = 10;
+    }
     setup_network_via_console(&net_config);
     config_loaded = true;
   } else {
@@ -62,6 +69,7 @@ int main() {
     network_setup(net_config);
     memcpy(dest_ip_global, net_config.dest_ip, 4);
     dest_port_global = net_config.dest_port;
+    time_delay_global = net_config.time_delay;
   } else {
     // Use default config
     printf("Using default configuration.\n");
@@ -73,6 +81,7 @@ int main() {
     network_setup(default_config);
     memcpy(dest_ip_global, (uint8_t[]){192, 168, 2, 10}, 4);
     dest_port_global = 16216;
+    time_delay_global = 10;
   }
 
   initialize_ds18b20();
