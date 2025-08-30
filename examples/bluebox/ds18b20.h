@@ -8,4 +8,3 @@ void ds18b20_core1_entry();
 void initialize_ds18b20(void);
 
 #endif
-

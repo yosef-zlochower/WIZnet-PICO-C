@@ -10,4 +10,3 @@
 #define WIZ_RST_PIN 0
 
 #define ONE_WIRE_PIN 6
-
