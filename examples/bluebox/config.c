@@ -8,11 +8,29 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <pico/multicore.h>
+#include <pico/stdio_usb.h>
 
 #include "hardware/flash.h"
+#include "hardware/gpio.h"
 
 
 #include "config.h"
+#include "hardware.h"
+
+volatile bool led_on = false;
+// This is the callback function that the timer will execute.
+bool repeating_timer_callback(struct repeating_timer *t) {
+    // Toggle the state of the LED pin.
+    if (led_on) {
+        gpio_put(LED_PIN, 0); // Turn LED off
+        led_on = false;
+    } else {
+        gpio_put(LED_PIN, 1); // Turn LED on
+        led_on = true;
+    }
+    // Return true to continue the timer.
+    return true;
+}
 
 // Flash memory configuration for storing network settings
 #define FLASH_TARGET_OFFSET (1024 * 1024)
@@ -173,6 +191,23 @@ void setup_network_via_console(network_config_t *net_config) {
     int val;
     char confirm;
 
+    struct repeating_timer timer;
+    gpio_put(LED_PIN, 0);
+
+    add_repeating_timer_us(-125000, repeating_timer_callback, NULL, &timer);
+
+    do {
+        printf("\n Press Enter to start configuration\n");
+	char c = getchar_timeout_us(5000000);
+	if (c == '\n' || c == '\r')
+	{
+	   break;
+	}
+    } while(1);
+    cancel_repeating_timer(&timer);
+    gpio_put(LED_PIN, 0);
+
+
     printf("\n--- Entering Network Configuration Mode ---\n");
 
     do {
@@ -328,5 +363,6 @@ void setup_network_via_console(network_config_t *net_config) {
 
     // Write to flash
     write_config_to_flash(net_config);
+    gpio_put(LED_PIN, 1);
 }
 

@@ -10,10 +10,8 @@
 #include <pico/multicore.h>
 
 #include "ds18b20.h"
+#include "hardware.h"
 
-// --- Hardware Pin Configurations ---
-#define ONE_WIRE_PIN 6
-#define LED_PIN 29
 
 // --- Packet Buffer ---
 #define PACKET_SIZE 17

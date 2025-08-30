@@ -13,10 +13,7 @@
 #include "config.h"
 #include "ds18b20.h"
 #include "network.h"
-
-// --- Hardware Pin Configurations ---
-#define LED_PIN 29
-#define CONFIG_BUTTON_PIN 28
+#include "hardware.h"
 
 // --- Packet Buffer and Network Configuration ---
 #define PACKET_SIZE 17
@@ -28,7 +25,6 @@ uint16_t dest_port_global;
 // Main application loop for core 0
 int main() {
     stdio_init_all();
-    sleep_ms(3000); // Wait for the terminal to connect
 
     // Initialize LED and config button pins
     gpio_init(LED_PIN);
