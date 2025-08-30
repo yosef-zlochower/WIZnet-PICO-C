@@ -12,6 +12,23 @@
 #include "ds18b20.h"
 #include "hardware.h"
 
+static volatile bool led_on = false;
+
+// This is the callback function that the timer will execute.
+static bool repeating_timer_callback(struct repeating_timer *t) {
+    // Toggle the state of the LED pin.
+    if (led_on) {
+        gpio_put(LED_PIN, 0); // Turn LED off
+        led_on = false;
+    } else {
+        gpio_put(LED_PIN, 1); // Turn LED on
+        led_on = true;
+    }
+    // Return true to continue the timer.
+    return true;
+}
+
+
 
 // --- Packet Buffer ---
 #define PACKET_SIZE 17
@@ -27,6 +44,7 @@ extern uint8_t packet_buffer[PACKET_SIZE]; // Access the buffer from main.c
 #define DS18B20_READ_SCRATCHPAD 0xbe
 #define DS18B20_ERROR -128
 
+
 static bool one_wire_reset() {
     gpio_set_dir(ONE_WIRE_PIN, GPIO_OUT);
     gpio_put(ONE_WIRE_PIN, 0);
@@ -38,6 +56,24 @@ static bool one_wire_reset() {
     return presence;
 }
 
+static bool check_for_ds18b20(void)
+{
+   struct repeating_timer timer;
+   bool found = one_wire_reset();
+   if (found)
+   {
+       return true;
+   }
+   add_repeating_timer_us(-500000, repeating_timer_callback, NULL, &timer);
+
+   while(!one_wire_reset())
+   {
+        sleep_us(5000000);
+   };
+   cancel_repeating_timer(&timer);
+   return true;
+
+}
 static void one_wire_write_bit(bool bit) {
     gpio_set_dir(ONE_WIRE_PIN, GPIO_OUT);
     if (bit) {
@@ -83,14 +119,11 @@ static uint8_t one_wire_read_byte() {
 
 static int ds18b20_read_temp() {
     uint8_t scratchpad[9];
-    if (!one_wire_reset())
-    {
-       return DS18B20_ERROR;
-    }
+    check_for_ds18b20();
     one_wire_write_byte(0xcc);
     one_wire_write_byte(DS18B20_CONVERT_T);
     sleep_ms(750);
-    if (!one_wire_reset()) return DS18B20_ERROR;
+    check_for_ds18b20();
     one_wire_write_byte(0xcc);
     one_wire_write_byte(DS18B20_READ_SCRATCHPAD);
     for (int i = 0; i < 9; i++) {
@@ -125,14 +158,6 @@ void ds18b20_core1_entry() {
 void initialize_ds18b20(void)
 {
     gpio_init(ONE_WIRE_PIN);
-    if (!one_wire_reset()) {
-        printf("CRITICAL: No DS18B20 device found. Exiting.\n");
-        while(1) {
-            gpio_put(LED_PIN, 1);
-            sleep_ms(500);
-            gpio_put(LED_PIN, 0);
-            sleep_ms(500);
-        }
-    }
+    check_for_ds18b20();
 }
 
