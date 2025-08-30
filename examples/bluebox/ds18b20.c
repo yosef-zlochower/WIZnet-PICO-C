@@ -58,6 +58,9 @@ static bool one_wire_reset() {
 
 static bool check_for_ds18b20(void)
 {
+	// Returns true if sensor found right away
+	// Returns false if sensor has disconnected temporarily
+	// never returns if the sensor is never found
    struct repeating_timer timer;
    bool found = one_wire_reset();
    if (found)
@@ -71,7 +74,7 @@ static bool check_for_ds18b20(void)
         sleep_us(5000000);
    };
    cancel_repeating_timer(&timer);
-   return true;
+   return false;
 
 }
 static void one_wire_write_bit(bool bit) {
@@ -118,12 +121,13 @@ static uint8_t one_wire_read_byte() {
 }
 
 static int ds18b20_read_temp() {
+	// We need to return error value if sensor was disconnected during this function call. If the sensor is reconnected the temperature recorded will be wrong.
     uint8_t scratchpad[9];
-    check_for_ds18b20();
+    if(!check_for_ds18b20()) { return DS18B20_ERROR;}
     one_wire_write_byte(0xcc);
     one_wire_write_byte(DS18B20_CONVERT_T);
     sleep_ms(750);
-    check_for_ds18b20();
+    if(!check_for_ds18b20()) { return DS18B20_ERROR;}
     one_wire_write_byte(0xcc);
     one_wire_write_byte(DS18B20_READ_SCRATCHPAD);
     for (int i = 0; i < 9; i++) {
@@ -132,7 +136,7 @@ static int ds18b20_read_temp() {
     int16_t raw_temp = (scratchpad[1] << 8) | scratchpad[0];
     float temp_c = (float)raw_temp / 16.0f;
     int temp_f = (int)(temp_c * 1.8f + 32.0f + 0.5f);
-    if (temp_c < -55.0f || temp_c > 125.0f) {
+    if (temp_f < 0 || temp_c > 212) {
         return DS18B20_ERROR;
     }
     return temp_f;

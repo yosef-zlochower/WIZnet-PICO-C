@@ -17,9 +17,9 @@
 #include "config.h"
 #include "hardware.h"
 
-volatile bool led_on = false;
+static volatile bool led_on = false;
 // This is the callback function that the timer will execute.
-bool repeating_timer_callback(struct repeating_timer *t) {
+static bool repeating_timer_callback(struct repeating_timer *t) {
     // Toggle the state of the LED pin.
     if (led_on) {
         gpio_put(LED_PIN, 0); // Turn LED off
