@@ -5,16 +5,17 @@
 #include <stdint.h>
 
 // Data structure to hold network configuration
-typedef struct {
-  uint8_t mac[6];
-  uint8_t ip[4];
-  uint8_t sn[4];
-  uint8_t gw[4];
-  uint8_t dest_ip[4];
-  uint16_t dest_port;
-  uint16_t time_delay;
-  uint32_t checksum;
-  uint32_t magic_number;
+typedef struct
+{
+    uint8_t mac[6];
+    uint8_t ip[4];
+    uint8_t sn[4];
+    uint8_t gw[4];
+    uint8_t dest_ip[4];
+    uint16_t dest_port;
+    uint16_t time_delay;
+    uint32_t checksum;
+    uint32_t magic_number;
 } network_config_t;
 
 // A unique number to identify valid configuration data in flash
