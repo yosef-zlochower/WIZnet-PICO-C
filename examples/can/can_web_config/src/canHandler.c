@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "port_common.h"
 #include "hardware/irq.h"
 #include "hardware/structs/pio.h"
