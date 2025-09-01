@@ -29,13 +29,8 @@ static bool repeating_timer_callback(struct repeating_timer *t) {
   return true;
 }
 
-// --- Packet Buffer ---
-#define PACKET_SIZE 17
-#define TEMPERATURE_BYTE_INDEX 16
-static const uint8_t UUID_PATTERN[16] = {0xd4, 0x3f, 0x9b, 0x60, 0xec, 0x14,
-                                         0x54, 0xd6, 0x95, 0xc9, 0x3f, 0x3a,
-                                         0x4b, 0x81, 0x6e, 0xaa};
-extern uint8_t packet_buffer[PACKET_SIZE]; // Access the buffer from main.c
+static const uint8_t UDP_PACKET[] = UDP_PACKET_PATTERN;
+
 
 // --- One-Wire and DS18B20 Protocol ---
 #define DS18B20_CONVERT_T 0x44
@@ -149,7 +144,7 @@ void ds18b20_core1_entry() {
     gpio_put(LED_PIN, 0); // Turn off LED
     int temp_f = ds18b20_read_temp();
     if (temp_f != DS18B20_ERROR && temp_f >= 0 && temp_f <= 255) {
-      memcpy(packet_buffer, UUID_PATTERN, 16);
+      memcpy(packet_buffer, UUID_PATTERN, PACKET_SIZE);
       packet_buffer[TEMPERATURE_BYTE_INDEX] = (uint8_t)temp_f;
       multicore_fifo_push_blocking(1);
     } else {
