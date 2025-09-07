@@ -17,8 +17,6 @@
 #include "network.h"
 
 // --- Packet Buffer and Network Configuration ---
-#define PACKET_SIZE 17
-#define TEMPERATURE_BYTE_INDEX 16
 uint8_t packet_buffer[PACKET_SIZE];
 uint8_t dest_ip_global[4];
 uint16_t dest_port_global;
