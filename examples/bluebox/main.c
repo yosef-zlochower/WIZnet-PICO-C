@@ -15,6 +15,7 @@
 #include "globals.h"
 #include "hardware.h"
 #include "network.h"
+#include "led_state.h"
 
 // --- Packet Buffer and Network Configuration ---
 uint8_t packet_buffer[PACKET_SIZE];

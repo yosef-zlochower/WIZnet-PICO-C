@@ -12,22 +12,7 @@
 #include "ds18b20.h"
 #include "hardware.h"
 #include "globals.h"
-
-static volatile bool led_on = false;
-
-// This is the callback function that the timer will execute.
-static bool repeating_timer_callback(struct repeating_timer *t) {
-  // Toggle the state of the LED pin.
-  if (led_on) {
-    gpio_put(LED_PIN, 0); // Turn LED off
-    led_on = false;
-  } else {
-    gpio_put(LED_PIN, 1); // Turn LED on
-    led_on = true;
-  }
-  // Return true to continue the timer.
-  return true;
-}
+#include "led_state.h"
 
 static const uint8_t UDP_PACKET[] = UDP_PACKET_PATTERN;
 
@@ -52,17 +37,16 @@ static bool check_for_ds18b20(void) {
   // Returns true if sensor found right away
   // Returns false if sensor has disconnected temporarily
   // never returns if the sensor is never found
-  struct repeating_timer timer;
   bool found = one_wire_reset();
   if (found) {
     return true;
   }
-  add_repeating_timer_us(-500000, repeating_timer_callback, NULL, &timer);
 
+  enter_error_state();
   while (!one_wire_reset()) {
     sleep_us(5000000);
   };
-  cancel_repeating_timer(&timer);
+  leave_error_state();
   return false;
 }
 static void one_wire_write_bit(bool bit) {

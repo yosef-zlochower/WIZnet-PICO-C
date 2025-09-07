@@ -17,6 +17,7 @@
 #include "config.h"
 #include "hardware.h"
 #include "network.h"
+#include "led_state.h"
 
 // --- WIZnet SPI Callback Functions ---
 static void wizchip_cs_select(void) { gpio_put(WIZ_CS_PIN, 0); }
@@ -44,6 +45,7 @@ static void wizchip_reset_pin_high(void) { gpio_put(WIZ_RST_PIN, 1); }
 // Initialize network hardware and software
 void network_setup(network_config_t config)
 {
+    enter_error_state();
     // Explicitly initialize SPI hardware
     spi_init(WIZ_SPI_PORT, 8000 * 1000);
     gpio_set_function(WIZ_SPI_RX_PIN, GPIO_FUNC_SPI);
@@ -87,6 +89,8 @@ void network_setup(network_config_t config)
 
     // Print out the assigned network info for verification
     print_network_information(net_info);
+    leave_error_state();
+
 }
 
 // Open a UDP socket
