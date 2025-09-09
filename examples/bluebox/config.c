@@ -176,6 +176,7 @@ uint32_t calculate_checksum(const network_config_t *config)
         sum += config->dest_ip[i];
     sum += config->dest_port;
     sum += config->time_delay;
+    sum += config->packet_style;
     return sum;
 }
 
@@ -469,6 +470,32 @@ void setup_network_via_console(network_config_t *net_config)
                    "delay.\n");
         }
     } while (1);
+
+    do
+    {
+        printf("\nEnter  packet style (0=new style, 1=old trap style)"
+               "(current: %u)\n",
+               net_config->packet_style);
+        printf("or press return to accept current: ");
+        val = read_decimal_byte();
+        if (val == -2)
+            break;
+        if (val == 0 || val == 1)
+        {
+            printf("\nPacket type =  %u (s). Is this correct? (y/n): ", val);
+            confirm = get_confirmation();
+            if (confirm == 'y' || confirm == 'Y')
+            {
+                net_config->packet_style = val;
+                break;
+            }
+        }
+        else
+        {
+            printf("\nInvalid packet_style. Please enter a valid type (0 or 1)\n");
+        }
+    } while (1);
+
 
     leave_config_state();
 

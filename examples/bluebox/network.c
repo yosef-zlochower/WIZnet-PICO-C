@@ -75,7 +75,7 @@ void network_setup(network_config_t config)
     wizchip_initialize();
 
     // Set network information from the provided config
-    wiz_NetInfo net_info;
+    wiz_NetInfo net_info = {.dns = {8, 8, 8, 8}};
     memcpy(net_info.mac, config.mac, 6);
     memcpy(net_info.ip, config.ip, 4);
     memcpy(net_info.sn, config.sn, 4);

@@ -1,10 +1,9 @@
 #define TEMPERATURE_BYTE 0x00
 #define TMP_PLACE_HOLDER 0x00
-#ifdef USE_OLD_STYLE_TRAP
 
 /* this is the patter for the old-style trap */
-#define PACKET_SIZE 198
-#define UDP_PACKET_PATTERN {\
+#define PACKET_SIZE_OLD 198
+#define UDP_PACKET_PATTERN_OLD {\
           0x30, 0x81, 0xc3, 0x02, 0x01, 0x00, 0x04, 0x06, 0x70, 0x75,\
           0x62, 0x6c, 0x69, 0x63, 0xa4, 0x81, 0xb5, 0x06, 0x09, 0x2b,\
           0x06, 0x01, 0x04, 0x01, 0xe5, 0x75, 0x01, 0x01, 0x40, 0x04,\
@@ -26,19 +25,21 @@
           0x06, 0x0f, 0x2b, 0x06, 0x01, 0x04, 0x01, 0xe5, 0x75, 0x01,\
           0x01, 0x01, 0x01, 0x03, 0x00, 0x06, 0x01, 0x02, 0x01, 0x02}
 
-#define TEMPERATURE_BYTE_INDEX 175
+#define TEMPERATURE_BYTE_INDEX_OLD 175
 
-#else
 // --- Packet Buffer and Network Configuration ---
-#define PACKET_SIZE 17
-#define TEMPERATURE_BYTE_INDEX 16
+#define PACKET_SIZE_NEW 17
+#define TEMPERATURE_BYTE_INDEX_NEW 16
 
-#define UDP_PACKET_PATTERN {\
+#define UDP_PACKET_PATTERN_NEW {\
           0xd4, 0x3f, 0x9b, 0x60, 0xec, 0x14, 0x54, 0xd6,\
           0x95, 0xc9, 0x3f, 0x3a, 0x4b, 0x81, 0x6e, 0xaa,\
           TMP_PLACE_HOLDER}
-#endif
 
+#define PACKET_SIZE_MAX 256
+extern uint8_t packet_pattern[];
+extern uint16_t packet_size;
+extern uint16_t temperature_byte_index;
 extern uint8_t packet_buffer[];
 extern uint8_t dest_ip_global[];
 extern uint16_t dest_port_global;

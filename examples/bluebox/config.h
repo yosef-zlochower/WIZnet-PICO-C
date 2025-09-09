@@ -16,6 +16,7 @@ typedef struct
     uint16_t time_delay;
     uint32_t checksum;
     uint32_t magic_number;
+    uint8_t packet_style;
 } network_config_t;
 
 // A unique number to identify valid configuration data in flash

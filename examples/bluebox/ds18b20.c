@@ -14,7 +14,6 @@
 #include "globals.h"
 #include "led_state.h"
 
-static const uint8_t UDP_PACKET[] = UDP_PACKET_PATTERN;
 
 
 // --- One-Wire and DS18B20 Protocol ---
@@ -132,8 +131,8 @@ void ds18b20_core1_entry() {
     gpio_put(LED_PIN, 0); // Turn off LED
     int temp_f = ds18b20_read_temp();
     if (temp_f != DS18B20_ERROR && temp_f >= 0 && temp_f <= 255) {
-      memcpy(packet_buffer, UDP_PACKET, PACKET_SIZE);
-      packet_buffer[TEMPERATURE_BYTE_INDEX] = (uint8_t)temp_f;
+      memcpy(packet_buffer, packet_pattern, packet_size);
+      packet_buffer[temperature_byte_index] = (uint8_t)temp_f;
       multicore_fifo_push_blocking(1);
     } else {
       printf("CRITICAL: Failed to get valid temp.\n");

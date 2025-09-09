@@ -18,10 +18,14 @@
 #include "led_state.h"
 
 // --- Packet Buffer and Network Configuration ---
-uint8_t packet_buffer[PACKET_SIZE];
+uint8_t packet_pattern[PACKET_SIZE_MAX];
+uint16_t packet_size;
+uint16_t temperature_byte_index;
+uint8_t packet_buffer[PACKET_SIZE_MAX];
 uint8_t dest_ip_global[4];
 uint16_t dest_port_global;
 uint16_t time_delay_global;
+uint8_t packet_style = 0;
 
 // Main application loop for core 0
 int main()
@@ -58,6 +62,7 @@ int main()
             memcpy(net_config.dest_ip, (uint8_t[]){192, 168, 2, 10}, 4);
             net_config.dest_port = 16216;
             net_config.time_delay = 10;
+            net_config.packet_style = 0;
         }
         setup_network_via_console(&net_config);
         config_loaded = true;
@@ -75,6 +80,7 @@ int main()
         memcpy(dest_ip_global, net_config.dest_ip, 4);
         dest_port_global = net_config.dest_port;
         time_delay_global = net_config.time_delay;
+        packet_style = net_config.packet_style;
     }
     else
     {
@@ -84,12 +90,36 @@ int main()
             .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56},
             .ip = {192, 168, 2, 162},
             .sn = {255, 255, 255, 0},
-            .gw = {192, 168, 2, 1}};
+            .gw = {192, 168, 2, 1},
+        };
         network_setup(default_config);
         memcpy(dest_ip_global, (uint8_t[]){192, 168, 2, 10}, 4);
         dest_port_global = 16216;
         time_delay_global = 10;
+        packet_style = 0;
     }
+
+    if (packet_style == 0)
+    {
+        packet_size = PACKET_SIZE_NEW;
+        uint8_t pattern [] = UDP_PACKET_PATTERN_NEW;
+        memcpy(packet_pattern, pattern, PACKET_SIZE_NEW);
+        temperature_byte_index = TEMPERATURE_BYTE_INDEX_NEW;
+    }
+    else if (packet_style == 1)
+    {
+        packet_size = PACKET_SIZE_OLD;
+        uint8_t pattern [] = UDP_PACKET_PATTERN_OLD;
+        memcpy(packet_pattern, pattern, PACKET_SIZE_OLD);
+        temperature_byte_index = TEMPERATURE_BYTE_INDEX_OLD;
+    }
+    else
+    {
+        printf("ERROR: INVALID PACKET_STYLE\n");
+        enter_error_state();
+        do {} while(1);
+    }
+
 
     initialize_ds18b20();
     network_open_socket(dest_port_global);
@@ -105,10 +135,10 @@ int main()
         if (packet_ready == 1)
         {
             printf("The temperature is %u F\n",
-                   packet_buffer[TEMPERATURE_BYTE_INDEX]);
+                   packet_buffer[temperature_byte_index]);
 
             // Send the UDP packet
-            int32_t len = network_send_packet(packet_buffer, PACKET_SIZE,
+            int32_t len = network_send_packet(packet_buffer, packet_size,
                                               dest_ip_global, dest_port_global);
 
             if (len > 0)
