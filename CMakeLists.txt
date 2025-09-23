@@ -150,6 +150,6 @@ add_subdirectory(examples)
 
 # Add libraries in subdirectories
 add_subdirectory(${CMAKE_SOURCE_DIR}/libraries)
-add_subdirectory(${MBEDTLS_DIR})
+# add_subdirectory(${MBEDTLS_DIR})
 add_subdirectory(${PORT_DIR})
 
