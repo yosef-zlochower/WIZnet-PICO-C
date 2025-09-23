@@ -46,6 +46,7 @@
 
 // Define the pins for your custom XIAO RP2040 + W5500 setup
 #define SPI_PORT spi0
+#define SPI_CLK  10
 #define PIN_CS 1
 #define PIN_SCK 2
 #define PIN_MOSI 3
