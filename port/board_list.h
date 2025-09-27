@@ -9,3 +9,5 @@
 #define W6100_EVB_PICO2 7
 #define W6300_EVB_PICO 8
 #define W6300_EVB_PICO2 9
+#define BLUEBOX_W5500 10
+#define BLUEBOX_W55RP20 11

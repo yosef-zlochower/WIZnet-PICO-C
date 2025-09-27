@@ -42,7 +42,7 @@
 #define PIO_SPI_DATA_IO2_PIN    20
 #define PIO_SPI_DATA_IO3_PIN    21
 #define PIN_RST                 22
-#elif (DEVICE_BOARD_NAME == XIAO_W5500_CUSTOM)
+#elif (DEVICE_BOARD_NAME == BLUEBOX_W5500)
 
 // Define the pins for your custom XIAO RP2040 + W5500 setup
 #define SPI_PORT spi0
@@ -53,6 +53,18 @@
 #define PIN_MISO 4
 #define PIN_INT 7
 #define PIN_RST 0
+
+#elif (DEVICE_BOARD_NAME == BLUEBOX_W55RP20)
+#define USE_PIO
+#define WIZNET_SPI_CLKDIV_MAJOR_DEFAULT   2
+#define WIZNET_SPI_CLKDIV_MINOR_DEFAULT   0
+
+#define PIN_CS 20
+#define PIN_SCK 21
+#define PIN_MOSI 23
+#define PIN_MISO 22
+#define PIN_INT 24
+#define PIN_RST 25
 
 #else
 /* SPI */

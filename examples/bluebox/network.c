@@ -46,6 +46,7 @@ static void wizchip_reset_pin_high(void) { gpio_put(WIZ_RST_PIN, 1); }
 void network_setup(network_config_t config)
 {
     enter_error_state();
+#if (DEVICE_BOARD_NAME == BLUEBOX_W5500)
     // Explicitly initialize SPI hardware
     spi_init(WIZ_SPI_PORT, 8000 * 1000);
     gpio_set_function(WIZ_SPI_RX_PIN, GPIO_FUNC_SPI);
@@ -70,6 +71,13 @@ void network_setup(network_config_t config)
     // Register callback functions for the WIZnet library
     reg_wizchip_cs_cbfunc(wizchip_cs_select, wizchip_cs_deselect);
     reg_wizchip_spi_cbfunc(wizchip_spi_read_byte, wizchip_spi_write_byte);
+#elif (DEVICE_BOARD_NAME == BLUEBOX_W55RP20)
+    wizchip_spi_initialize();
+    wizchip_cris_initialize();
+    wizchip_reset();
+#else
+    #error Unknown device
+#endif
 
     // Initialize the WIZnet chip using the configured callbacks
     wizchip_initialize();

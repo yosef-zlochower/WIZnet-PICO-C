@@ -6,7 +6,7 @@ target_sources(IOLIBRARY_FILES PUBLIC
         ${PORT_DIR}/ioLibrary_Driver/src/wizchip_gpio_irq.c
         )
 
-if(${BOARD_NAME} STREQUAL W55RP20_EVB_PICO OR ${WIZNET_CHIP} STREQUAL W6300)
+if(${BOARD_NAME} STREQUAL W55RP20_EVB_PICO OR ${BOARD_NAME} STREQUAL BLUEBOX_W55RP20 OR ${WIZNET_CHIP} STREQUAL W6300)
 pico_generate_pio_header(IOLIBRARY_FILES ${PORT_DIR}/ioLibrary_Driver/src/wizchip_qspi_pio.pio)
 
 target_sources(IOLIBRARY_FILES PUBLIC 
