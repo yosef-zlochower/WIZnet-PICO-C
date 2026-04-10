@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include "config.h"
+#include "debug.h"
 #include "ds18b20.h"
 #include "globals.h"
 #include "hardware.h"
@@ -123,16 +124,17 @@ int main()
 
     initialize_ds18b20();
     network_open_socket(dest_port_global);
+    debug_init(dest_port_global + 1);
 
     // Launch core 1 to handle temperature sensing
     multicore_launch_core1(ds18b20_core1_entry);
 
     for (;;)
     {
-        // Wait for core 1 to push a new temperature packet
-        uint32_t packet_ready = multicore_fifo_pop_blocking();
+        uint32_t value;
+        bool got_data = multicore_fifo_pop_timeout_us(1000000, &value);
 
-        if (packet_ready == 1)
+        if (got_data && value == 1)
         {
             printf("The temperature is %u F\n",
                    packet_buffer[temperature_byte_index]);
@@ -152,6 +154,8 @@ int main()
                 printf("Failed to send UDP packet. Error: %ld\n", len);
             }
         }
+
+        debug_poll();
     }
 
     network_close_socket();

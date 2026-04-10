@@ -11,6 +11,7 @@ add_executable(${TARGET_NAME}
     ds18b20.c
     network.c
     led_state.c
+    debug.c
 )
 
 # Link the required libraries for Pico and WIZnet

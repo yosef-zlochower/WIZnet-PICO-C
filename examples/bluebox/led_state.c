@@ -10,6 +10,7 @@
 
 #include "config.h"
 #include "hardware.h"
+#include "led_state.h"
 
 
 static volatile bool led_on = false;
@@ -38,6 +39,20 @@ enum state_t
 
 static enum state_t current_state = NORMAL;
 
+#define EVENT_RING_SIZE 8
+static volatile state_event_t event_ring[EVENT_RING_SIZE];
+static volatile uint8_t event_ring_head = 0;  // next write position
+static volatile uint8_t event_ring_tail = 0;  // next read position
+
+static void event_push(state_event_t evt)
+{
+    uint8_t next = (event_ring_head + 1) % EVENT_RING_SIZE;
+    if (next != event_ring_tail)  // drop if full
+    {
+        event_ring[event_ring_head] = evt;
+        event_ring_head = next;
+    }
+}
 
 static struct repeating_timer timer;
 
@@ -51,6 +66,7 @@ void enter_error_state(void)
       cancel_repeating_timer(&timer);
     }
     current_state = ERROR;
+    event_push(EVT_ENTERING_ERROR);
     add_repeating_timer_us(-125000, repeating_timer_callback, NULL, &timer);
 }
 
@@ -72,6 +88,7 @@ void leave_error_state(void)
     }
     cancel_repeating_timer(&timer);
     current_state=NORMAL;
+    event_push(EVT_LEAVING_ERROR);
 }
 
 void enter_config_state(void)
@@ -86,6 +103,7 @@ void enter_config_state(void)
       enter_error_state();
     }
   current_state=CONFIG;
+    event_push(EVT_ENTERING_CONFIG);
     add_repeating_timer_us(-250000, repeating_timer_callback, NULL, &timer);
 }
 
@@ -108,4 +126,26 @@ void leave_config_state(void)
     printf("leaving CONFIG state\n");
     cancel_repeating_timer(&timer);
     current_state=NORMAL;
+    event_push(EVT_LEAVING_CONFIG);
+}
+
+const char *get_state_name(void)
+{
+    switch (current_state)
+    {
+        case ERROR:  return "error";
+        case CONFIG: return "config";
+        default:     return "normal";
+    }
+}
+
+bool state_event_pop(state_event_t *out)
+{
+    if (event_ring_tail == event_ring_head)
+        return false;
+    state_event_t evt = event_ring[event_ring_tail];
+    event_ring_tail = (event_ring_tail + 1) % EVENT_RING_SIZE;
+    if (out)
+        *out = evt;
+    return true;
 }
