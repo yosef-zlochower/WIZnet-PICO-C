@@ -22,6 +22,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     hardware_dma
     ETHERNET_FILES
     IOLIBRARY_FILES
+    DHCP_FILES
+    TIMER_FILES
 )
 
 # Enable USB and disable UART for standard I/O

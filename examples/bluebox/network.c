@@ -14,10 +14,59 @@
 #include "wizchip_conf.h"
 #include "wizchip_spi.h"
 
+#include "dhcp.h"
+#include "timer.h"
+
 #include "config.h"
 #include "hardware.h"
 #include "network.h"
 #include "led_state.h"
+
+// --- DHCP State ---
+#define ETHERNET_BUF_MAX_SIZE (1024 * 2)
+#define DHCP_RETRY_COUNT 5
+
+static uint8_t g_dhcp_buf[ETHERNET_BUF_MAX_SIZE];
+static volatile uint16_t g_msec_cnt = 0;
+static bool g_dhcp_active = false;
+static bool g_dhcp_got_ip = false;
+
+static void dhcp_timer_callback(void)
+{
+    g_msec_cnt++;
+    if (g_msec_cnt >= 1000)
+    {
+        g_msec_cnt = 0;
+        DHCP_time_handler();
+    }
+}
+
+static void dhcp_assign_cb(void)
+{
+    wiz_NetInfo net_info;
+    getIPfromDHCP(net_info.ip);
+    getGWfromDHCP(net_info.gw);
+    getSNfromDHCP(net_info.sn);
+    getDNSfromDHCP(net_info.dns);
+    ctlnetwork(CN_SET_NETINFO, &net_info);
+
+    printf("\n--- DHCP Configuration ---\n");
+    printf("  IP:         %d.%d.%d.%d\n",
+           net_info.ip[0], net_info.ip[1], net_info.ip[2], net_info.ip[3]);
+    printf("  Subnet:     %d.%d.%d.%d\n",
+           net_info.sn[0], net_info.sn[1], net_info.sn[2], net_info.sn[3]);
+    printf("  Gateway:    %d.%d.%d.%d\n",
+           net_info.gw[0], net_info.gw[1], net_info.gw[2], net_info.gw[3]);
+    printf("  DNS:        %d.%d.%d.%d\n",
+           net_info.dns[0], net_info.dns[1], net_info.dns[2], net_info.dns[3]);
+    printf("  Lease time: %lu seconds\n", getDHCPLeasetime());
+    printf("--------------------------\n");
+}
+
+static void dhcp_conflict_cb(void)
+{
+    printf("DHCP IP conflict detected!\n");
+}
 
 // --- WIZnet SPI Callback Functions ---
 static void wizchip_cs_select(void) { gpio_put(WIZ_CS_PIN, 0); }
@@ -82,23 +131,106 @@ void network_setup(network_config_t config)
     // Initialize the WIZnet chip using the configured callbacks
     wizchip_initialize();
 
-    // Set network information from the provided config
-    wiz_NetInfo net_info = {.dns = {8, 8, 8, 8}};
-    memcpy(net_info.mac, config.mac, 6);
-    memcpy(net_info.ip, config.ip, 4);
-    memcpy(net_info.sn, config.sn, 4);
-    memcpy(net_info.gw, config.gw, 4);
+    if (config.use_dhcp)
+    {
+        // For DHCP: set MAC address on the chip, then start DHCP client
+        wiz_NetInfo net_info = {.dns = {8, 8, 8, 8}};
+        memcpy(net_info.mac, config.mac, 6);
+        memcpy(net_info.ip, (uint8_t[]){0, 0, 0, 0}, 4);
+        memcpy(net_info.sn, (uint8_t[]){0, 0, 0, 0}, 4);
+        memcpy(net_info.gw, (uint8_t[]){0, 0, 0, 0}, 4);
 #if _WIZCHIP_ > W5500
 #else
-    net_info.dhcp = NETINFO_STATIC;
+        net_info.dhcp = NETINFO_DHCP;
 #endif
+        network_initialize(net_info);
 
-    network_initialize(net_info);
+        wizchip_1ms_timer_initialize(dhcp_timer_callback);
+        DHCP_init(SOCKET_DHCP, g_dhcp_buf);
+        reg_dhcp_cbfunc(dhcp_assign_cb, dhcp_assign_cb, dhcp_conflict_cb);
+        g_dhcp_active = true;
 
-    // Print out the assigned network info for verification
-    print_network_information(net_info);
+        printf("DHCP client initialized.\n");
+    }
+    else
+    {
+        // Static IP configuration
+        wiz_NetInfo net_info = {.dns = {8, 8, 8, 8}};
+        memcpy(net_info.mac, config.mac, 6);
+        memcpy(net_info.ip, config.ip, 4);
+        memcpy(net_info.sn, config.sn, 4);
+        memcpy(net_info.gw, config.gw, 4);
+#if _WIZCHIP_ > W5500
+#else
+        net_info.dhcp = NETINFO_STATIC;
+#endif
+        network_initialize(net_info);
+        print_network_information(net_info);
+    }
+
     leave_error_state();
+}
 
+// Run DHCP until IP is obtained or max retries exceeded
+bool network_dhcp_run(void)
+{
+    if (!g_dhcp_active)
+        return true; // static IP, nothing to do
+
+    uint8_t dhcp_retry = 0;
+    g_dhcp_got_ip = false;
+
+    printf("Waiting for DHCP...\n");
+
+    while (1)
+    {
+        uint8_t ret = DHCP_run();
+
+        if (ret == DHCP_IP_LEASED)
+        {
+            if (!g_dhcp_got_ip)
+            {
+                printf("DHCP success.\n");
+                g_dhcp_got_ip = true;
+            }
+            return true;
+        }
+        else if (ret == DHCP_IP_ASSIGN || ret == DHCP_IP_CHANGED)
+        {
+            g_dhcp_got_ip = true;
+            return true;
+        }
+        else if (ret == DHCP_FAILED)
+        {
+            dhcp_retry++;
+            printf("DHCP timeout, retry %d/%d\n", dhcp_retry, DHCP_RETRY_COUNT);
+
+            if (dhcp_retry > DHCP_RETRY_COUNT)
+            {
+                printf("DHCP failed after %d retries.\n", DHCP_RETRY_COUNT);
+                DHCP_stop();
+                g_dhcp_active = false;
+                return false;
+            }
+        }
+
+        sleep_ms(100);
+    }
+}
+
+// Call periodically for DHCP lease renewal
+void network_dhcp_maintain(void)
+{
+    if (!g_dhcp_active)
+        return;
+
+    uint8_t ret = DHCP_run();
+    if (ret == DHCP_FAILED)
+    {
+        printf("DHCP lease renewal failed. Attempting re-init.\n");
+        DHCP_init(SOCKET_DHCP, g_dhcp_buf);
+        reg_dhcp_cbfunc(dhcp_assign_cb, dhcp_assign_cb, dhcp_conflict_cb);
+    }
 }
 
 // Open a UDP socket

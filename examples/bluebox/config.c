@@ -177,6 +177,7 @@ uint32_t calculate_checksum(const network_config_t *config)
     sum += config->dest_port;
     sum += config->time_delay;
     sum += config->packet_style;
+    sum += config->use_dhcp;
     return sum;
 }
 
@@ -279,6 +280,40 @@ void setup_network_via_console(network_config_t *net_config)
 
     do
     {
+        printf("\nUse DHCP for IP/subnet/gateway? (current: %s)\n",
+               net_config->use_dhcp ? "yes" : "no");
+        printf("Enter y or n, or press return to accept current: ");
+        char dhcp_choice = getchar();
+        if (dhcp_choice == '\r' || dhcp_choice == '\n')
+        {
+            break;
+        }
+        putchar(dhcp_choice);
+        // consume trailing newline
+        char trail = getchar();
+        (void)trail;
+        if (dhcp_choice == 'y' || dhcp_choice == 'Y')
+        {
+            printf("\nDHCP enabled.\n");
+            net_config->use_dhcp = 1;
+            break;
+        }
+        else if (dhcp_choice == 'n' || dhcp_choice == 'N')
+        {
+            printf("\nDHCP disabled. Using static IP configuration.\n");
+            net_config->use_dhcp = 0;
+            break;
+        }
+        else
+        {
+            printf("\nInvalid input. Please enter 'y' or 'n'.\n");
+        }
+    } while (1);
+
+    if (!net_config->use_dhcp)
+    {
+    do
+    {
         printf("\nEnter new IP address (current: %d.%d.%d.%d)\n",
                net_config->ip[0], net_config->ip[1], net_config->ip[2],
                net_config->ip[3]);
@@ -378,6 +413,7 @@ void setup_network_via_console(network_config_t *net_config)
             printf("\nInvalid Gateway. Please use the format X.X.X.X.\n");
         }
     } while (1);
+    } // end if (!net_config->use_dhcp)
 
     do
     {

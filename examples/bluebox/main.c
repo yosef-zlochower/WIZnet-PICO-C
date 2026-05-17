@@ -63,6 +63,7 @@ int main()
             net_config.dest_port = 16216;
             net_config.time_delay = 10;
             net_config.packet_style = 0;
+            net_config.use_dhcp = 0;
         }
         setup_network_via_console(&net_config);
         config_loaded = true;
@@ -91,12 +92,21 @@ int main()
             .ip = {192, 168, 2, 162},
             .sn = {255, 255, 255, 0},
             .gw = {192, 168, 2, 1},
+            .use_dhcp = 0,
         };
         network_setup(default_config);
         memcpy(dest_ip_global, (uint8_t[]){192, 168, 2, 10}, 4);
         dest_port_global = 16216;
         time_delay_global = 10;
         packet_style = 0;
+    }
+
+    // If DHCP is enabled, obtain IP before proceeding
+    if (!network_dhcp_run())
+    {
+        printf("ERROR: Failed to obtain IP via DHCP\n");
+        enter_error_state();
+        do {} while(1);
     }
 
     if (packet_style == 0)
@@ -134,6 +144,9 @@ int main()
 
         if (packet_ready == 1)
         {
+            // Maintain DHCP lease (no-op if static IP)
+            network_dhcp_maintain();
+
             printf("The temperature is %u F\n",
                    packet_buffer[temperature_byte_index]);
 
