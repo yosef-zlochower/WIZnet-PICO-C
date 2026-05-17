@@ -54,8 +54,7 @@ int main()
         if (!valid)
         {
             // Initialize with default configuration to display in the prompt
-            memcpy(net_config.mac,
-                   (uint8_t[]){0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x02}, 6);
+            generate_default_mac(net_config.mac);
             memcpy(net_config.ip, (uint8_t[]){192, 168, 2, 162}, 4);
             memcpy(net_config.sn, (uint8_t[]){255, 255, 255, 0}, 4);
             memcpy(net_config.gw, (uint8_t[]){192, 168, 2, 1}, 4);
@@ -88,12 +87,12 @@ int main()
         // Use default config
         printf("Using default configuration.\n");
         network_config_t default_config = {
-            .mac = {0x00, 0x08, 0xDC, 0x12, 0x34, 0x56},
             .ip = {192, 168, 2, 162},
             .sn = {255, 255, 255, 0},
             .gw = {192, 168, 2, 1},
             .use_dhcp = 0,
         };
+        generate_default_mac(default_config.mac);
         network_setup(default_config);
         memcpy(dest_ip_global, (uint8_t[]){192, 168, 2, 10}, 4);
         dest_port_global = 16216;

@@ -12,6 +12,7 @@
 
 #include "hardware/flash.h"
 #include "hardware/gpio.h"
+#include "pico/unique_id.h"
 
 #include "config.h"
 #include "hardware.h"
@@ -158,6 +159,23 @@ static char get_confirmation()
     return c;
 }
 
+// Generate a unique default MAC from the board's flash ID
+void generate_default_mac(uint8_t *mac_out)
+{
+    pico_unique_board_id_t board_id;
+    pico_get_unique_board_id(&board_id);
+
+    mac_out[0] = board_id.id[2];
+    mac_out[1] = board_id.id[3];
+    mac_out[2] = board_id.id[4];
+    mac_out[3] = board_id.id[5];
+    mac_out[4] = board_id.id[6];
+    mac_out[5] = board_id.id[7];
+
+    // Set locally-administered bit, clear multicast bit
+    mac_out[0] = (mac_out[0] & 0xFC) | 0x02;
+}
+
 // --- Public API Functions ---
 
 // Calculate a simple checksum
@@ -235,48 +253,85 @@ void setup_network_via_console(network_config_t *net_config)
 
     printf("\n--- Entering Network Configuration Mode ---\n");
 
-    do
     {
+        uint8_t default_mac[6];
+        generate_default_mac(default_mac);
         printf(
-            "Enter new MAC address (current: %02X:%02X:%02X:%02X:%02X:%02X)\n",
+            "MAC address (current: %02X:%02X:%02X:%02X:%02X:%02X)\n",
             net_config->mac[0], net_config->mac[1], net_config->mac[2],
             net_config->mac[3], net_config->mac[4], net_config->mac[5]);
-        printf("or press return to accept current: ");
-        val = read_hex_byte();
-        if (val == -2)
-            break; // Accept current value
-        temp_mac[0] = val;
-        printf(":");
-        temp_mac[1] = read_hex_byte();
-        printf(":");
-        temp_mac[2] = read_hex_byte();
-        printf(":");
-        temp_mac[3] = read_hex_byte();
-        printf(":");
-        temp_mac[4] = read_hex_byte();
-        printf(":");
-        temp_mac[5] = read_hex_byte();
+        printf("  board unique default: %02X:%02X:%02X:%02X:%02X:%02X\n",
+            default_mac[0], default_mac[1], default_mac[2],
+            default_mac[3], default_mac[4], default_mac[5]);
 
-        if (temp_mac[0] != -2 && temp_mac[1] != -2 && temp_mac[2] != -2 &&
-            temp_mac[3] != -2 && temp_mac[4] != -2 && temp_mac[5] != -2)
+        do
         {
-            printf("\nNew MAC: %02X:%02X:%02X:%02X:%02X:%02X. Is this correct? "
-                   "(y/n): ",
-                   temp_mac[0], temp_mac[1], temp_mac[2], temp_mac[3],
-                   temp_mac[4], temp_mac[5]);
-            confirm = get_confirmation();
-            if (confirm == 'y' || confirm == 'Y')
+            printf("Use (c)urrent, (u)nique default, or (m)anual entry? ");
+            char choice = getchar();
+            putchar(choice);
+            printf("\n");
+            if (choice == 'c' || choice == 'C')
             {
-                memcpy(net_config->mac, temp_mac, 6);
                 break;
             }
-        }
-        else
-        {
-            printf("\nInvalid MAC address. Please use the format "
-                   "XX:XX:XX:XX:XX:XX.\n");
-        }
-    } while (1);
+            else if (choice == 'u' || choice == 'U')
+            {
+                memcpy(net_config->mac, default_mac, 6);
+                printf("MAC set to board default: "
+                       "%02X:%02X:%02X:%02X:%02X:%02X\n",
+                       net_config->mac[0], net_config->mac[1],
+                       net_config->mac[2], net_config->mac[3],
+                       net_config->mac[4], net_config->mac[5]);
+                break;
+            }
+            else if (choice == 'm' || choice == 'M')
+            {
+                do
+                {
+                    printf("Enter MAC (XX:XX:XX:XX:XX:XX): ");
+                    temp_mac[0] = read_hex_byte();
+                    if (temp_mac[0] == -2)
+                        continue;
+                    printf(":");
+                    temp_mac[1] = read_hex_byte();
+                    printf(":");
+                    temp_mac[2] = read_hex_byte();
+                    printf(":");
+                    temp_mac[3] = read_hex_byte();
+                    printf(":");
+                    temp_mac[4] = read_hex_byte();
+                    printf(":");
+                    temp_mac[5] = read_hex_byte();
+
+                    if (temp_mac[1] != -2 && temp_mac[2] != -2 &&
+                        temp_mac[3] != -2 && temp_mac[4] != -2 &&
+                        temp_mac[5] != -2)
+                    {
+                        printf("\nNew MAC: %02X:%02X:%02X:%02X:%02X:%02X. "
+                               "Is this correct? (y/n): ",
+                               temp_mac[0], temp_mac[1], temp_mac[2],
+                               temp_mac[3], temp_mac[4], temp_mac[5]);
+                        confirm = get_confirmation();
+                        if (confirm == 'y' || confirm == 'Y')
+                        {
+                            memcpy(net_config->mac, temp_mac, 6);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        printf("\nInvalid MAC address. Please use the format "
+                               "XX:XX:XX:XX:XX:XX.\n");
+                    }
+                } while (1);
+                break;
+            }
+            else
+            {
+                printf("Invalid choice. Please enter 'c', 'u', or 'm'.\n");
+            }
+        } while (1);
+    }
 
     do
     {
