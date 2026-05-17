@@ -50,7 +50,7 @@ The bluebox is a dual-core temperature monitoring device that periodically reads
 | `main.c` | Entry point: config loading, network init, core1 launch, UDP send loop |
 | `config.c/h` | Network config: flash storage (at 1MB offset), interactive console setup |
 | `ds18b20.c/h` | DS18B20 one-wire temperature sensor driver (bit-bang GPIO) |
-| `network.c/h` | WIZnet initialization, UDP socket open/send/close |
+| `network.c/h` | WIZnet initialization, DHCP client, UDP socket open/send/close |
 | `led_state.c/h` | LED state machine: NORMAL (steady), ERROR (fast blink), CONFIG (medium blink) |
 | `hardware.h` | Board-specific GPIO pin definitions (conditional on DEVICE_BOARD_NAME) |
 | `globals.h` | Packet templates (SNMP trap + custom UDP), constants |
@@ -83,6 +83,18 @@ Pin mappings are in `examples/bluebox/hardware.h`.
 
 Stored in flash at 1MB offset with magic number + XOR checksum validation. Enter config mode by holding the config button at boot (interactive USB serial console).
 
-**Configurable fields:** MAC, device IP, subnet, gateway, destination IP, destination port, time delay (seconds), packet style (0 or 1).
+**Configurable fields:** MAC, DHCP (y/n), device IP, subnet, gateway, destination IP, destination port, time delay (seconds), packet style (0 or 1).
 
-**Defaults:** IP 192.168.2.162, dest 192.168.2.10:16216, 10s interval, custom packet format.
+When DHCP is enabled, the IP/subnet/gateway prompts are skipped (these are obtained automatically from the DHCP server). The destination IP, port, time delay, and packet style must still be configured manually.
+
+**Defaults:** IP 192.168.2.162, dest 192.168.2.10:16216, 10s interval, custom packet format, DHCP disabled.
+
+### DHCP Support
+
+The firmware supports optional DHCP for obtaining IP, subnet, and gateway automatically. This is controlled by the `use_dhcp` field in the configuration.
+
+- **Socket allocation:** Socket 0 for UDP data, socket 1 for DHCP
+- **Startup:** When DHCP is enabled, `network_dhcp_run()` blocks until an IP is obtained (up to 5 retries). On failure, the device enters the error state.
+- **Lease renewal:** `network_dhcp_maintain()` is called each time a temperature packet is sent, keeping the DHCP lease active.
+- **Assigned configuration is printed** to the USB serial console (IP, subnet, gateway, DNS, lease time) when the DHCP lease is obtained.
+- Uses the WIZnet DHCP library (`libraries/ioLibrary_Driver/Internet/DHCP/`) and the port timer (`port/timer/`) for the required 1-second tick.
