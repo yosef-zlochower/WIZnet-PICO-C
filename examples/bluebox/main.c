@@ -63,6 +63,7 @@ int main()
             net_config.time_delay = 10;
             net_config.packet_style = 0;
             net_config.use_dhcp = 0;
+            net_config.route_via_gateway = 0;
         }
         setup_network_via_console(&net_config);
         config_loaded = true;

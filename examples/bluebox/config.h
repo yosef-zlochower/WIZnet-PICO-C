@@ -18,6 +18,7 @@ typedef struct
     uint32_t magic_number;
     uint8_t packet_style;
     uint8_t use_dhcp;
+    uint8_t route_via_gateway;
 } network_config_t;
 
 // A unique number to identify valid configuration data in flash

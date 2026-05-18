@@ -196,6 +196,7 @@ uint32_t calculate_checksum(const network_config_t *config)
     sum += config->time_delay;
     sum += config->packet_style;
     sum += config->use_dhcp;
+    sum += config->route_via_gateway;
     return sum;
 }
 
@@ -469,6 +470,41 @@ void setup_network_via_console(network_config_t *net_config)
         }
     } while (1);
     } // end if (!net_config->use_dhcp)
+
+    do
+    {
+        printf("\nRoute all traffic via the gateway? (current: %s)\n",
+               net_config->route_via_gateway ? "yes" : "no");
+        printf("  (Use when the network blocks direct host-to-host traffic,\n"
+               "   e.g. switch port/client isolation. Forces a /32 mask so\n"
+               "   the chip ARPs only the gateway and the router relays.)\n");
+        printf("Enter y or n, or press return to accept current: ");
+        char gw_choice = getchar();
+        if (gw_choice == '\r' || gw_choice == '\n')
+        {
+            break;
+        }
+        putchar(gw_choice);
+        // consume trailing newline
+        char trail = getchar();
+        (void)trail;
+        if (gw_choice == 'y' || gw_choice == 'Y')
+        {
+            printf("\nGateway routing enabled.\n");
+            net_config->route_via_gateway = 1;
+            break;
+        }
+        else if (gw_choice == 'n' || gw_choice == 'N')
+        {
+            printf("\nGateway routing disabled.\n");
+            net_config->route_via_gateway = 0;
+            break;
+        }
+        else
+        {
+            printf("\nInvalid input. Please enter 'y' or 'n'.\n");
+        }
+    } while (1);
 
     do
     {

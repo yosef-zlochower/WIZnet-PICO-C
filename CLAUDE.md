@@ -83,11 +83,28 @@ Pin mappings are in `examples/bluebox/hardware.h`.
 
 Stored in flash at 1MB offset with magic number + XOR checksum validation. Enter config mode by holding the config button at boot (interactive USB serial console).
 
-**Configurable fields:** MAC, DHCP (y/n), device IP, subnet, gateway, destination IP, destination port, time delay (seconds), packet style (0 or 1).
+**Configurable fields:** MAC, DHCP (y/n), device IP, subnet, gateway, route-via-gateway (y/n), destination IP, destination port, time delay (seconds), packet style (0 or 1).
 
 When DHCP is enabled, the IP/subnet/gateway prompts are skipped (these are obtained automatically from the DHCP server). The destination IP, port, time delay, and packet style must still be configured manually.
 
-**Defaults:** IP 192.168.2.162, dest 192.168.2.10:16216, 10s interval, custom packet format, DHCP disabled.
+**Defaults:** IP 192.168.2.162, dest 192.168.2.10:16216, 10s interval, custom packet format, DHCP disabled, route-via-gateway disabled.
+
+### Route Via Gateway
+
+`route_via_gateway` is an optional workaround for networks that block direct
+host-to-host (peer) traffic at layer 2 — e.g. switch port isolation / private
+VLAN / "client isolation" on managed campus or enterprise networks. The symptom
+is `sendto()` returning `SOCKERR_TIMEOUT` (-13, "Failed to send UDP packet")
+because the WIZnet chip's ARP for the destination gets no reply, even though IP,
+subnet, gateway, and DHCP are all valid.
+
+When enabled, the firmware overrides the subnet mask applied to the chip with
+`255.255.255.255` (a /32), so every destination is treated as off-subnet and the
+chip ARPs **only the gateway**, letting the router relay the packet. This is
+applied in `network.c` on both the static-IP path and the DHCP path (the real
+DHCP-assigned subnet is still printed to the console for reference). It only
+helps if the router is permitted to forward between the isolated ports; pure L2
+isolation with no router relay cannot be worked around from the endpoint.
 
 ### DHCP Support
 
