@@ -54,6 +54,10 @@ static void dhcp_assign_cb(void)
     getGWfromDHCP(net_info.gw);
     getSNfromDHCP(net_info.sn);
     getDNSfromDHCP(net_info.dns);
+    // ctlnetwork(CN_SET_NETINFO) also writes the chip's MAC (SHAR) from
+    // net_info.mac. DHCP doesn't supply a MAC, so read back the one already
+    // programmed by network_setup() instead of leaving it as stack garbage.
+    getSHAR(net_info.mac);
 
     // Preserve the real DHCP-assigned subnet for display, then optionally
     // force a /32 mask so the chip routes everything via the gateway.
