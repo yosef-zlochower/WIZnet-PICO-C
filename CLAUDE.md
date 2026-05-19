@@ -83,47 +83,27 @@ Pin mappings are in `examples/bluebox/hardware.h`.
 
 Stored in flash at 1MB offset with magic number + XOR checksum validation. Enter config mode by holding the config button at boot (interactive USB serial console).
 
-**Configurable fields:** MAC, DHCP (y/n), device IP, subnet, gateway, route-via-gateway (y/n), destination IP, destination port, time delay (seconds), packet style (0 or 1).
+**Configurable fields:** MAC, DHCP (y/n), device IP, subnet, gateway, destination IP, destination port, time delay (seconds), packet style (0 or 1).
 
 When DHCP is enabled, the IP/subnet/gateway prompts are skipped (these are obtained automatically from the DHCP server). The destination IP, port, time delay, and packet style must still be configured manually.
 
-**Defaults:** IP 192.168.2.162, dest 192.168.2.10:16216, 10s interval, custom packet format, DHCP disabled, route-via-gateway disabled.
+**Defaults:** IP 192.168.2.162, dest 192.168.2.10:16216, 10s interval, custom packet format, DHCP disabled.
 
-### Route Via Gateway
+### Route Via Gateway (removed)
 
-`route_via_gateway` is an optional workaround for networks that block direct
-host-to-host (peer) traffic at layer 2 — e.g. switch port isolation / private
-VLAN / "client isolation" on managed campus or enterprise networks. The symptom
-is `sendto()` returning `SOCKERR_TIMEOUT` (-13, "Failed to send UDP packet")
-because the WIZnet chip's ARP for the destination gets no reply, even though IP,
-subnet, gateway, and DHCP are all valid.
+A `route_via_gateway` option once existed (commit 4c7e752): it forced a
+`255.255.255.255` /32 mask so the chip ARPed only the gateway, as a workaround
+for suspected L2 client isolation causing `sendto()` `SOCKERR_TIMEOUT`.
 
-When enabled, the firmware overrides the subnet mask applied to the chip with
-`255.255.255.255` (a /32), so every destination is treated as off-subnet and the
-chip ARPs **only the gateway**, letting the router relay the packet. This is
-applied in `network.c` on both the static-IP path and the DHCP path (the real
-DHCP-assigned subnet is still printed to the console for reference). It only
-helps if the router is permitted to forward between the isolated ports; pure L2
-isolation with no router relay cannot be worked around from the endpoint.
-
-> **⚠️ Needs re-evaluation.** This workaround was introduced (commit 4c7e752)
-> while the DHCP MAC-corruption bug (fixed later in commit 87d9b3f, "Preserve
-> chip MAC across DHCP assign/renew callback") was still present. That bug wrote
-> uninitialized stack garbage into the chip's MAC register on every DHCP assign
-> and lease renewal, so all UDP data traffic went out with a bogus, changing
-> source MAC — which on a managed network (port security / MAC filtering)
-> produces the *exact same* `SOCKERR_TIMEOUT` / no-ARP-reply symptom described
-> above. Since DHCP is required on the target network, that bug was active
-> during every failure that motivated this workaround. `route_via_gateway` could
-> not have reliably fixed it (a garbage source MAC breaks ARP to the gateway
-> just as much as to a peer), so it was likely a misdiagnosis. Whether genuine
-> L2 client isolation exists on the target network is still **unverified**.
->
-> **Action:** Re-test with DHCP on and `route_via_gateway` **off** on the now-
-> fixed firmware. If packets reach the host, the MAC bug was the whole problem
-> and this feature should be considered for removal from config/firmware/docs.
-> Only if traffic still times out is there real L2 isolation, making this the
-> intended workaround.
+It was **removed** after the real root cause was found and fixed: the DHCP
+MAC-corruption bug (commit 87d9b3f, "Preserve chip MAC across DHCP assign/renew
+callback") wrote uninitialized stack garbage into the chip's MAC register on
+every DHCP assign/renew, so all UDP traffic went out with a bogus, changing
+source MAC — producing the same `SOCKERR_TIMEOUT` / no-ARP-reply symptom on a
+managed network. With that fixed and DHCP on / route-via-gateway off, packets
+sent reliably to an on-subnet peer with no gateway relay, confirming there was
+no genuine L2 isolation and the workaround was a misdiagnosis. Do not
+reintroduce it without first ruling out MAC/ARP-level faults.
 
 ### DHCP Support
 

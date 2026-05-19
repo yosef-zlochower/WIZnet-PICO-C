@@ -30,12 +30,6 @@ static uint8_t g_dhcp_buf[ETHERNET_BUF_MAX_SIZE];
 static volatile uint16_t g_msec_cnt = 0;
 static bool g_dhcp_active = false;
 static bool g_dhcp_got_ip = false;
-static bool g_route_via_gateway = false;
-
-// Subnet mask that forces every destination off-subnet, so the WIZnet chip
-// ARPs only the gateway and lets the router relay (used when the network
-// blocks direct host-to-host traffic, e.g. switch port/client isolation).
-static const uint8_t GATEWAY_ROUTE_SUBNET[4] = {255, 255, 255, 255};
 
 static void dhcp_timer_callback(void)
 {
@@ -59,22 +53,13 @@ static void dhcp_assign_cb(void)
     // programmed by network_setup() instead of leaving it as stack garbage.
     getSHAR(net_info.mac);
 
-    // Preserve the real DHCP-assigned subnet for display, then optionally
-    // force a /32 mask so the chip routes everything via the gateway.
-    uint8_t dhcp_sn[4];
-    memcpy(dhcp_sn, net_info.sn, 4);
-    if (g_route_via_gateway)
-        memcpy(net_info.sn, GATEWAY_ROUTE_SUBNET, 4);
-
     ctlnetwork(CN_SET_NETINFO, &net_info);
 
     printf("\n--- DHCP Configuration ---\n");
     printf("  IP:         %d.%d.%d.%d\n",
            net_info.ip[0], net_info.ip[1], net_info.ip[2], net_info.ip[3]);
     printf("  Subnet:     %d.%d.%d.%d\n",
-           dhcp_sn[0], dhcp_sn[1], dhcp_sn[2], dhcp_sn[3]);
-    if (g_route_via_gateway)
-        printf("  (overridden to 255.255.255.255 - routing via gateway)\n");
+           net_info.sn[0], net_info.sn[1], net_info.sn[2], net_info.sn[3]);
     printf("  Gateway:    %d.%d.%d.%d\n",
            net_info.gw[0], net_info.gw[1], net_info.gw[2], net_info.gw[3]);
     printf("  DNS:        %d.%d.%d.%d\n",
@@ -116,7 +101,6 @@ void network_setup(network_config_t config)
 {
     enter_error_state();
 
-    g_route_via_gateway = config.route_via_gateway;
 #if (DEVICE_BOARD_NAME == BLUEBOX_W5500)
     // Explicitly initialize SPI hardware
     spi_init(WIZ_SPI_PORT, 8000 * 1000);
@@ -186,16 +170,6 @@ void network_setup(network_config_t config)
 #else
         net_info.dhcp = NETINFO_STATIC;
 #endif
-        if (g_route_via_gateway)
-        {
-            printf("Gateway routing enabled: overriding subnet "
-                   "%d.%d.%d.%d -> 255.255.255.255 "
-                   "(all traffic via gateway %d.%d.%d.%d).\n",
-                   net_info.sn[0], net_info.sn[1], net_info.sn[2],
-                   net_info.sn[3], net_info.gw[0], net_info.gw[1],
-                   net_info.gw[2], net_info.gw[3]);
-            memcpy(net_info.sn, GATEWAY_ROUTE_SUBNET, 4);
-        }
         network_initialize(net_info);
         print_network_information(net_info);
     }
