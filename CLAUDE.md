@@ -106,6 +106,25 @@ DHCP-assigned subnet is still printed to the console for reference). It only
 helps if the router is permitted to forward between the isolated ports; pure L2
 isolation with no router relay cannot be worked around from the endpoint.
 
+> **⚠️ Needs re-evaluation.** This workaround was introduced (commit 4c7e752)
+> while the DHCP MAC-corruption bug (fixed later in commit 87d9b3f, "Preserve
+> chip MAC across DHCP assign/renew callback") was still present. That bug wrote
+> uninitialized stack garbage into the chip's MAC register on every DHCP assign
+> and lease renewal, so all UDP data traffic went out with a bogus, changing
+> source MAC — which on a managed network (port security / MAC filtering)
+> produces the *exact same* `SOCKERR_TIMEOUT` / no-ARP-reply symptom described
+> above. Since DHCP is required on the target network, that bug was active
+> during every failure that motivated this workaround. `route_via_gateway` could
+> not have reliably fixed it (a garbage source MAC breaks ARP to the gateway
+> just as much as to a peer), so it was likely a misdiagnosis. Whether genuine
+> L2 client isolation exists on the target network is still **unverified**.
+>
+> **Action:** Re-test with DHCP on and `route_via_gateway` **off** on the now-
+> fixed firmware. If packets reach the host, the MAC bug was the whole problem
+> and this feature should be considered for removal from config/firmware/docs.
+> Only if traffic still times out is there real L2 isolation, making this the
+> intended workaround.
+
 ### DHCP Support
 
 The firmware supports optional DHCP for obtaining IP, subnet, and gateway automatically. This is controlled by the `use_dhcp` field in the configuration.
