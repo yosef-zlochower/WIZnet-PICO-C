@@ -12,11 +12,11 @@
 
 #include "hardware/flash.h"
 #include "hardware/gpio.h"
-#include "pico/unique_id.h"
 
 #include "config.h"
 #include "hardware.h"
 #include "led_state.h"
+#include "mac.h"
 
 // Flash memory configuration for storing network settings
 #define FLASH_TARGET_OFFSET (1024 * 1024)
@@ -159,23 +159,6 @@ static char get_confirmation()
     return c;
 }
 
-// Generate a unique default MAC from the board's flash ID
-void generate_default_mac(uint8_t *mac_out)
-{
-    pico_unique_board_id_t board_id;
-    pico_get_unique_board_id(&board_id);
-
-    mac_out[0] = board_id.id[2];
-    mac_out[1] = board_id.id[3];
-    mac_out[2] = board_id.id[4];
-    mac_out[3] = board_id.id[5];
-    mac_out[4] = board_id.id[6];
-    mac_out[5] = board_id.id[7];
-
-    // Set locally-administered bit, clear multicast bit
-    mac_out[0] = (mac_out[0] & 0xFC) | 0x02;
-}
-
 // --- Public API Functions ---
 
 // Calculate a simple checksum
@@ -254,35 +237,77 @@ void setup_network_via_console(network_config_t *net_config)
     printf("\n--- Entering Network Configuration Mode ---\n");
 
     {
-        uint8_t default_mac[6];
-        generate_default_mac(default_mac);
+        bool eeprom_avail = mac_eeprom_available();
+        uint8_t eeprom_mac[6];
+        if (eeprom_avail)
+        {
+            mac_eeprom_get(eeprom_mac);
+        }
+
         printf(
             "MAC address (current: %02X:%02X:%02X:%02X:%02X:%02X)\n",
             net_config->mac[0], net_config->mac[1], net_config->mac[2],
             net_config->mac[3], net_config->mac[4], net_config->mac[5]);
-        printf("  board unique default: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            default_mac[0], default_mac[1], default_mac[2],
-            default_mac[3], default_mac[4], default_mac[5]);
+        if (eeprom_avail)
+        {
+            printf("  unique EEPROM MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+                eeprom_mac[0], eeprom_mac[1], eeprom_mac[2],
+                eeprom_mac[3], eeprom_mac[4], eeprom_mac[5]);
+        }
+        else
+        {
+            printf("  (no MAC EEPROM detected)\n");
+        }
 
         do
         {
-            printf("Use (c)urrent, (u)nique default, or (m)anual entry? ");
+            if (eeprom_avail)
+            {
+                printf("Use (c)urrent, (u)nique EEPROM, or (m)anual entry? ");
+            }
+            else
+            {
+                printf("Use (c)urrent, (r)andom, or (m)anual entry? ");
+            }
             char choice = getchar();
             putchar(choice);
             printf("\n");
+
             if (choice == 'c' || choice == 'C')
             {
                 break;
             }
-            else if (choice == 'u' || choice == 'U')
+            else if (eeprom_avail && (choice == 'u' || choice == 'U'))
             {
-                memcpy(net_config->mac, default_mac, 6);
-                printf("MAC set to board default: "
+                memcpy(net_config->mac, eeprom_mac, 6);
+                printf("MAC set to EEPROM unique: "
                        "%02X:%02X:%02X:%02X:%02X:%02X\n",
                        net_config->mac[0], net_config->mac[1],
                        net_config->mac[2], net_config->mac[3],
                        net_config->mac[4], net_config->mac[5]);
                 break;
+            }
+            else if (!eeprom_avail && (choice == 'r' || choice == 'R'))
+            {
+                uint8_t rand_mac[6];
+                bool accepted = false;
+                do
+                {
+                    mac_random_generate(rand_mac);
+                    printf("Random MAC: %02X:%02X:%02X:%02X:%02X:%02X. "
+                           "Accept? (y/n): ",
+                           rand_mac[0], rand_mac[1], rand_mac[2],
+                           rand_mac[3], rand_mac[4], rand_mac[5]);
+                    confirm = get_confirmation();
+                    if (confirm == 'y' || confirm == 'Y')
+                    {
+                        memcpy(net_config->mac, rand_mac, 6);
+                        accepted = true;
+                        break;
+                    }
+                } while (1);
+                if (accepted)
+                    break;
             }
             else if (choice == 'm' || choice == 'M')
             {
@@ -328,7 +353,10 @@ void setup_network_via_console(network_config_t *net_config)
             }
             else
             {
-                printf("Invalid choice. Please enter 'c', 'u', or 'm'.\n");
+                if (eeprom_avail)
+                    printf("Invalid choice. Please enter 'c', 'u', or 'm'.\n");
+                else
+                    printf("Invalid choice. Please enter 'c', 'r', or 'm'.\n");
             }
         } while (1);
     }

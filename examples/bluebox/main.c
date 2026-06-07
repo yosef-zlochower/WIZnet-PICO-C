@@ -14,6 +14,7 @@
 #include "ds18b20.h"
 #include "globals.h"
 #include "hardware.h"
+#include "mac.h"
 #include "network.h"
 #include "led_state.h"
 
@@ -43,6 +44,9 @@ int main()
 
     printf("Pico temperature sender initialized.\n");
 
+    // Probe the optional MAC EEPROM (24AA02E48) once, before any caller asks.
+    mac_init();
+
     // Handle network configuration
     network_config_t net_config;
     bool config_loaded = false;
@@ -54,7 +58,8 @@ int main()
         if (!valid)
         {
             // Initialize with default configuration to display in the prompt
-            generate_default_mac(net_config.mac);
+            if (!mac_eeprom_get(net_config.mac))
+                mac_random_generate(net_config.mac);
             memcpy(net_config.ip, (uint8_t[]){192, 168, 2, 162}, 4);
             memcpy(net_config.sn, (uint8_t[]){255, 255, 255, 0}, 4);
             memcpy(net_config.gw, (uint8_t[]){192, 168, 2, 1}, 4);
@@ -90,14 +95,28 @@ int main()
             .ip = {192, 168, 2, 162},
             .sn = {255, 255, 255, 0},
             .gw = {192, 168, 2, 1},
+            .dest_ip = {192, 168, 2, 10},
+            .dest_port = 16216,
+            .time_delay = 10,
+            .packet_style = 0,
             .use_dhcp = 0,
         };
-        generate_default_mac(default_config.mac);
+        if (!mac_eeprom_get(default_config.mac))
+        {
+            // No EEPROM: freshly randomize, then persist so the MAC is stable
+            // across reboots. With an EEPROM present we skip this — the chip
+            // itself is the stable source of truth.
+            mac_random_generate(default_config.mac);
+            printf("No MAC EEPROM; persisting generated random MAC to flash.\n");
+            default_config.magic_number = CONFIG_MAGIC_NUMBER;
+            default_config.checksum = calculate_checksum(&default_config);
+            write_config_to_flash(&default_config);
+        }
         network_setup(default_config);
-        memcpy(dest_ip_global, (uint8_t[]){192, 168, 2, 10}, 4);
-        dest_port_global = 16216;
-        time_delay_global = 10;
-        packet_style = 0;
+        memcpy(dest_ip_global, default_config.dest_ip, 4);
+        dest_port_global = default_config.dest_port;
+        time_delay_global = default_config.time_delay;
+        packet_style = default_config.packet_style;
     }
 
     // If DHCP is enabled, obtain IP before proceeding

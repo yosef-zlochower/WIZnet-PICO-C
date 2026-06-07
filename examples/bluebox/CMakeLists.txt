@@ -9,6 +9,7 @@ add_executable(${TARGET_NAME}
     main.c
     config.c
     ds18b20.c
+    mac.c
     network.c
     led_state.c
 )
@@ -18,6 +19,8 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     pico_stdlib
     pico_stdio_usb
     pico_multicore
+    pico_rand
+    hardware_i2c
     hardware_spi
     hardware_dma
     ETHERNET_FILES
