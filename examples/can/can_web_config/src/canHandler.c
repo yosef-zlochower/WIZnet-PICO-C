@@ -257,4 +257,3 @@ void printCanConfig(CanConfig *p_can_config) {
 
     printf("\n-------------------------------------\n");
 }
->>>>>>> main
